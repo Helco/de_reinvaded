@@ -1,0 +1,127 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: mtnb.bt
+//   Authors: Helco
+//   Version: 1.0
+//   Purpose: Genesis3D Actor Motion
+//  Category: Model
+//------------------------------------------------
+#include "common.bt"
+
+enum <byte> NodeType {
+  NODE_UNDECIDED,
+  NODE_BRANCH, // is unimplemented :D
+  NODE_LEAF
+};
+
+enum <uint32> PathInterpolation {
+  PATH_INTERPOLATE_LINEAR,
+  PATH_INTERPOLATE_HERMITE,
+  PATH_INTERPOLATE_SLERP,
+  PATH_INTERPOLATE_SQUAD,
+  PATH_INTERPOLATE_TRIPOD,
+  PATH_INTERPOLATE_HERMITE_ZERO_DERIV
+};
+
+enum <byte> VKInterpolation {
+  VK_INTERPOLATE_LINEAR,
+  VK_INTERPOLATE_HERMITE,
+  VK_INTERPOLATE_HERMITE_ZERO_DERIV
+};
+
+enum <byte> QKInterpolation {
+  QK_INTERPOLATE_LINEAR,
+  QK_INTERPOLATE_SLERP,
+  QK_INTERPOLATE_SQUAD
+};
+
+struct LeafNode_Flags {
+  uint32 hasEvents: 1;
+  uint32 hasNames: 1;
+  uint32 padding: 30 <hidden=true>;
+};
+
+struct TKEvents {
+  Assert(false, "TODO: implement");
+};
+
+struct VKFrameList {
+  uint32 blockSize;
+  byte isLooping;
+  byte compression;
+  VKInterpolation interpolationType;
+  byte padding <hidden=true>;
+  uint32 count <hidden=true>;
+
+  if (compression & 2) {
+    float startTime;
+    float deltaTime;
+  }
+  else
+    float times[count];
+  Vec3f keys[count];
+};
+
+struct QKFrameList {
+  uint32 blockSize;
+  byte isLooping;
+  byte compression;
+  QKInterpolation interpolationType;
+  byte padding <hidden=true>;
+  uint32 count <hidden=true>;
+
+  if (compression & 2) {
+    float startTime;
+    float deltaTime;
+  }
+  else
+    float times[count];
+
+  if (compression & 1) {
+    Vec3f hinge;
+    float angles[count];
+  }
+  else
+    Quaternion keys[count];
+};
+
+struct Path {
+  uint32 hasTranslationKeys: 1;
+  uint32 hasRotationKeys: 1;
+  PathInterpolation translationInterpolation: 7;
+  PathInterpolation rotationInterpolation: 7;
+  uint32 version: 16;
+
+  if (hasTranslationKeys)
+    VKFrameList vkFrameList;
+  if (hasRotationKeys)
+    QKFrameList qkFrameList;
+};
+
+struct LeafNode {
+  uint32 pathCount <hidden=true>;
+  uint32 nameChecksum;
+  LeafNode_Flags flags;
+
+  if (flags.hasEvents)
+    TKEvents events;
+  if (flags.hasNames)
+    StrBlock names;
+  if (pathCount > 0)
+    Path paths[pathCount]<optimize=false>;
+};
+
+struct Motion {
+  uint32 signature <format=hex>;
+  uint32 version;
+  uint16 nameLength <hidden=true>;
+  byte maintainNames; 
+  byte nodeType;
+
+  if (nameLength > 0)
+    char name[nameLength];
+
+  Assert(nodeType == NODE_LEAF, "root node is not leaf");
+  LeafNode root;
+} motion;

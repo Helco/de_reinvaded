@@ -1,0 +1,41 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: strblock.bt
+//   Authors: Helco
+//   Version: 1.0
+//   Purpose: Genesis 3D Common Types
+//  Category: Generic
+//------------------------------------------------
+
+struct Vec2f {
+  float x, y;
+};
+
+struct Vec3f {
+  float x, y, z;
+};
+
+struct Quaternion {
+  float w, x, y, z;
+};
+
+// Column matrix minus last row (0, 0, 0, 1)
+struct Mat4f {
+  Vec3f a, b, c, t;
+};
+
+struct StrWrap {
+  string name;
+};
+
+struct StrBlock {
+  uint32 signature <format=hex>;
+  int32 count;
+  uint32 size;
+
+  local uint64 prev = FTell();
+  uint32 offsets[count];
+  StrWrap names[count]<optimize=false>;
+  Assert(FTell() == prev + size, "Invalid string block");
+};

@@ -7,19 +7,7 @@
 //   Purpose: Genesis 3D Body Geometry
 //  Category: Model
 //------------------------------------------------
-
-struct Vec2f {
-  float x, y;
-};
-
-struct Vec3f {
-  float x, y, z;
-};
-
-// Column matrix minus last row (0, 0, 0, 1)
-struct Mat4f {
-  Vec3f a, b, c, t;
-};
+#include "common.bt"
 
 struct Vertex {
   Vec3f pos;
@@ -59,21 +47,6 @@ struct TriangleList {
   uint32 faceCount <hidden=true>;
   if (faceCount > 0)
     Triangle faces[faceCount];
-};
-
-struct StrWrap {
-  string name;
-};
-
-struct StrBlock {
-  uint32 signature <format=hex>;
-  int32 count;
-  uint32 size;
-
-  local uint64 prev = FTell();
-  uint32 offsets[count];
-  StrWrap names[count]<optimize=false>;
-  Assert(FTell() == prev + size, "Invalid string block");
 };
 
 struct GeGeometry {
