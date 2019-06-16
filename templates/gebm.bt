@@ -1,0 +1,160 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: gebm.bt
+//   Authors: Helco
+//   Version: 1.0
+//   Purpose: Genesis3D Bitmap Format (GEBM only)
+//  Category: Image
+//------------------------------------------------
+
+enum <byte> GePixelFormat {
+  PF_NO_DATA,
+  PF_8BIT,
+  PF_8BIT_GRAY,
+  PF_16BIT_555_RGB,
+  PF_16BIT_555_BGR,
+  PF_16BIT_565_RGB,
+  PF_16BIT_565_BGR,
+  PF_16BIT_4444_ARGB,
+  PF_16BIT_1555_ARGB,
+  PF_24BIT_RGB,
+  PF_24BIT_BGR,
+  PF_24BIT_YUV,
+  PF_32BIT_RGBX,
+  PF_32BIT_XRGB,
+  PF_32BIT_BGRX,
+  PF_32BIT_XBGR,
+  PF_32BIT_RGBA,
+  PF_32BIT_ARGB,
+  PF_32BIT_BGRA,
+  PF_32BIT_ABGR,
+  PF_WAVELET
+};
+
+string ReadLog2(uint32 v) {
+  string s;
+  SPrintf(s, "%d", (1 << v));
+  return s;
+}
+
+uint GetBytesPerPixel(GePixelFormat format) {
+  if (format == PF_NO_DATA || format == PF_WAVELET)
+    return 0;
+  else if (format >= PF_8BIT && format <= PF_8BIT_GRAY)
+    return 1;
+  else if (format >= PF_16BIT_555_RGB && format <= PF_16BIT_1555_ARGB)
+    return 2;
+  else if (format >= PF_24BIT_RGB && format <= PF_24BIT_YUV)
+    return 3;
+  else if (format >= PF_32BIT_RGBX && format <= PF_32BIT_ABGR)
+    return 4;
+  else
+    return 0;
+}
+
+uint SHIFT_R_ROUNDUP(uint val, uint shift) {
+  return (val + (1 << shift) - 1) >> shift;
+}
+
+uint GetMipPixels(uint level, uint width, uint height) {
+  return SHIFT_R_ROUNDUP(width, level) * SHIFT_R_ROUNDUP(height, level);
+}
+
+struct GeBM_Version {
+  byte minor: 4;
+  byte major: 4;
+};
+
+struct GeBM_Flags {
+  byte whAreLog2: 1;
+  byte hasColorKey: 1;
+  byte hasAlpha: 1;
+  byte hasPalette: 1;
+  byte reserved: 1 <hidden=true>;
+  byte ifNotLog2AreByte: 1;
+  byte padding: 2 <hidden=true>;
+};
+
+struct GeBM_Palette_Flags {
+  byte format: 5;
+  byte isSize256: 1;
+  byte isCompressed: 1;
+};
+
+struct GeBM_Color (GePixelFormat format) {
+  byte data[GetBytesPerPixel(format)];
+};
+
+struct GeBM_Palette {
+  GeBM_Palette_Flags flags;
+  local int pSize = 256;
+  if (flags.isSize256)
+    pSize = 256;
+  else {
+    byte size;
+    pSize = size;
+  }
+  if (pSize > 0)
+    GeBM_Color colors(flags.format)[pSize]<optimize=true>;
+  Assert(!flags.isCompressed, "Compressed palettes are not supported");
+};
+
+struct GeBM_Mipmap_Flags {
+  byte level: 4;
+  byte isCompressed: 1;
+  byte isPaethFiltered: 1;
+  byte _padding: 2 <hidden=true>;
+};
+
+struct GeBM_Mipmap (GePixelFormat format, uint width, uint height) {
+  GeBM_Mipmap_Flags flags;
+  Assert(!flags.isCompressed && !flags.isPaethFiltered, "Neither compression nor paeth filter is supported");
+  GeBM_Color pixels(format)[GetMipPixels(flags.level, width, height)]<optimize=true>;
+};
+
+struct GeBM;
+struct GeBM {
+  uint32 signature <format=hex>;
+  GeBM_Version version;
+  GeBM_Flags flags;
+  GePixelFormat format;
+  byte seekMipCount: 4;
+  byte maximumMip: 4;
+  Assert(GetBytesPerPixel(format) > 0, "Unsupported pixel format");
+
+  if (flags.whAreLog2) {
+    byte height: 4 <read=ReadLog2>;
+    byte width: 4 <read=ReadLog2>;
+  }
+  else if (flags.ifNotLog2AreByte) {
+    byte width;
+    byte height;
+  }
+  else {
+    uint16 width;
+    uint16 height;
+  }
+  local uint pWidth = width;
+  local uint pHeight = height;
+  if (flags.whAreLog2) {
+    pWidth = 1 << pWidth;
+    pHeight = 1 << pHeight;
+  }
+
+  if (flags.hasColorKey) {
+    byte colorKey[GetBytesPerPixel(format)];
+  }
+
+  if (flags.hasPalette) {
+    GeBM_Palette palette;
+  }
+
+  while (ReadUByte() <= maximumMip)
+    GeBM_Mipmap mipmap(format, pWidth, pHeight);
+  byte terminatingMipLevel <hidden=true>;
+
+  if (flags.hasAlpha) {
+    GeBM alpha;
+  }
+} bitmap;
