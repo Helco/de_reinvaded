@@ -1,0 +1,79 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: vfile.bt
+//   Authors: Helco
+//   Version: 1.0
+//   Purpose: Genesis3D VFile
+//  Category: Archive
+// File Mask: *.act
+//------------------------------------------------
+
+struct Header {
+  uint32 signature <format=hex>;
+  uint16 version;
+  uint16 unknown;
+  uint32 isDispersed;
+  uint32 directoryOffset;
+  uint32 dataLength;
+  uint32 endPosition;
+};
+
+struct DirTree_Header {
+  uint32 signature <format=hex>;
+  uint32 size;
+};
+
+struct VFile_Time {
+  uint32 time1;
+  uint32 time2;
+};
+
+struct VFile_Hints {
+  uint32 size <hidden=true>;
+  if (size > 0)
+    byte data[size];
+};
+
+struct VFile_Attributes {
+  uint32 isReadOnly: 1;
+  uint32 isDirectory: 1;
+  uint32 dummy: 30 <hidden=true>;
+};
+
+struct DirTree_File;
+struct VFile_Main;
+struct DirTree_File {
+  uint32 nameLen <hidden=true>;
+  char name[nameLen];
+
+  VFile_Time time;
+  VFile_Attributes attributes;
+  uint32 size;
+  uint32 offset;
+  VFile_Hints hints;
+
+  uint32 termChildren <hidden=true>;
+  if (termChildren != 0xFFFFFFFF)
+    DirTree_File children;
+  uint32 termSibling <hidden=true>;
+  if (termSibling != 0xFFFFFFFF)
+    DirTree_File sibling;
+
+  if (size > 0) {
+    local uint64 prev = FTell();
+    FSeek(offset);
+    byte data[size];
+    FSeek(prev);
+  }
+};
+
+struct VFile_Main {
+  Header header;
+  FSeek(header.directoryOffset);
+  DirTree_Header dirTreeHeader;
+
+  uint32 termFirst <hidden=true>;
+  if (termFirst != 0xFFFFFFFF)
+    DirTree_File file;
+} main;
