@@ -1,0 +1,106 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: geom.bt
+//   Authors: Helco
+//   Version: 1.0
+//   Purpose: Genesis 3D Body Geometry
+//  Category: Model
+//------------------------------------------------
+
+struct Vec2f {
+  float x, y;
+};
+
+struct Vec3f {
+  float x, y, z;
+};
+
+// Column matrix minus last row (0, 0, 0, 1)
+struct Mat4f {
+  Vec3f a, b, c, t;
+};
+
+struct Vertex {
+  Vec3f pos;
+  Vec2f uv;
+  byte boneIndex;
+  byte unknown;
+  int16 padding <hidden=true>;
+};
+
+struct Normal {
+  Vec3f normal;
+  byte boneIndex;
+  byte unknown;
+  int16 padding <hidden=true>;
+};
+
+struct Bone {
+  Vec3f boundingBoxMin;
+  Vec3f boundingBoxMax;
+  Mat4f attachmentMatrix;
+  int16 parentBoneIndex;
+  int16 padding <hidden=true>;
+};
+
+struct Material {
+  uint32 hasBitmap; // Old Pointer?
+  Vec3f color;
+};
+
+struct Triangle {
+  int16 vtxIndex[3];
+  int16 normalIndex[3];
+  int16 materialIndex;
+};
+
+struct TriangleList {
+  uint32 faceCount <hidden=true>;
+  if (faceCount > 0)
+    Triangle faces[faceCount];
+};
+
+struct StrWrap {
+  string name;
+};
+
+struct StrBlock {
+  uint32 signature <format=hex>;
+  int32 count;
+  uint32 size;
+
+  local uint64 prev = FTell();
+  uint32 offsets[count];
+  StrWrap names[count]<optimize=false>;
+  Assert(FTell() == prev + size, "Invalid string block");
+};
+
+struct GeGeometry {
+  uint32 signature <format=hex>;
+  uint32 version;
+  Vec3f boundingBoxMin;
+  Vec3f boundingBoxMax;
+
+  int16 vertexCount <hidden=true>;
+  if (vertexCount > 0)
+    Vertex vertices[vertexCount];
+
+  int16 normalCount <hidden=true>;
+  if (normalCount > 0)
+    Normal normals[normalCount];
+
+  int16 boneCount <hidden=true>;
+  if (boneCount > 0)
+    Bone bones[boneCount];
+  StrBlock boneNames;
+
+  int16 materialCount <hidden=true>;
+  if (materialCount > 0)
+    Material materials[materialCount];
+  StrBlock materialNames;
+
+  uint32 levelOfDetailCount <hidden=true>;
+  if (levelOfDetailCount > 0)
+    TriangleList levels[levelOfDetailCount]<optimize=false>;
+} geo;
