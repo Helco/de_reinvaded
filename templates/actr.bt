@@ -1,0 +1,16 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: actr.bt
+//   Authors: Helco
+//   Version: 1.0
+//   Purpose: Genesis 3D Actor Header
+//  Category: Model
+//------------------------------------------------
+
+struct Actor {
+  uint32 signature <format=hex>;
+  uint32 version;
+  uint32 hasBody;
+  uint32 motionCount;
+} actor;
