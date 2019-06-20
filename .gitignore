@@ -2,3 +2,5 @@ nodejs/node_modules
 testout
 *.act.json
 .vscode
+**/bin/
+**/obj/
