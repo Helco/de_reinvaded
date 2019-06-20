@@ -1,9 +1,0 @@
-{
-    "name": "de_reinvaded_tools",
-    "description": "Tools for Deutschland Reinvaded",
-    "authors": "Helco",
-    "version": "1.0.0",
-    "dependencies": {
-        "binary-parser": "^1.4.0"
-    }
-}
