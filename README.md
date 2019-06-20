@@ -9,4 +9,7 @@ There are 010 Editor templates for almost everything regarding `.ACT` files (onl
 The work I have done was mostly digging through the old source code of the underlying engine ([Genesis3D](https://github.com/RealityFactory/Genesis3D)) and translating what I understood.
 There were some modifications needed to be compatible with "Invasion Deutschland", so don't expect everything to work with other Genesis3D stuff.
 
-There is a nodejs script to parse and extract the vfile format (which works on at least two of the game files :P ).
+There is a small .NET core library and according cli to:
+
+  1. Convert GeBitmaps (such found in `abc.ACT/Body/Bitmaps/*`) to PNG files
+  2. Extract VFile archives
