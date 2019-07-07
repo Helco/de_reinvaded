@@ -4,3 +4,13 @@ testout
 .vscode
 **/bin/
 **/obj/
+dere.unity/*.sln
+dere.unity/*.csproj
+dere.unity/Library
+dere.unity/obj
+dere.unity/Build
+dere.unity/Temp
+dere.unity/Logs
+dere.unity/Assets/dere.io/
+dere.unity/Assets/Imported/
+dere.unity/Assets/Imported.meta
