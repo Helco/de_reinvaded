@@ -29,8 +29,11 @@ public static class DereIOExtension
 
     public static UnityEngine.Matrix4x4 ToUnity(this dere.io.Matrix4 m)
     {
-        return new UnityEngine.Matrix4x4(m.a.ToUnity(), m.b.ToUnity(), m.c.ToUnity(), new UnityEngine.Vector4(
-            m.t.x, m.t.y, m.t.z, 1.0f
-        ));
+        return new UnityEngine.Matrix4x4(
+            new UnityEngine.Vector4(m.a.x, m.b.x, m.c.x, 0.0f),
+            new UnityEngine.Vector4(m.a.y, m.b.y, m.c.y, 0.0f),
+            new UnityEngine.Vector4(m.a.z, m.b.z, m.c.z, 0.0f),
+            new UnityEngine.Vector4(m.t.x, m.t.y, m.t.z, 1.0f)
+        );
     }
 }

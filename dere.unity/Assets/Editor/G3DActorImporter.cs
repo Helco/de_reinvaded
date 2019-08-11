@@ -105,11 +105,16 @@ public class G3DActorImporter : ScriptedImporter
 
         mesh.uv = geo.vertices.Select(v => v.uv.ToUnity()).ToArray();
 
+        mesh.uv2 = geo.vertices.Select(v => v.boneIndex).Select(i => new UnityEngine.Vector2(i, i)).ToArray();
+
         mesh.bindposes = geo.bones.Select(b => b.attachmentMatrix.ToUnity()).ToArray();
 
         mesh.boneWeights = geo.vertices.Select(v => new BoneWeight {
             boneIndex0 = v.boneIndex,
-            weight0 = 1.0f
+            weight0 = 1.0f,
+            weight1 = 0.0f,
+            weight2 = 0.0f,
+            weight3 = 0.0f
         }).ToArray();
 
         mesh.subMeshCount = geo.materials.Length;
@@ -135,19 +140,26 @@ public class G3DActorImporter : ScriptedImporter
         Transform[] boneObjects = Enumerable.Repeat(0, geo.bones.Length)
             .Select((_) => new GameObject().transform).ToArray();
         for (int i = 0; i < geo.bones.Length; i++) {
-            boneObjects[i].name = geo.bones[i].name;
+            boneObjects[i].name = i + ": " + geo.bones[i].name;
             if (geo.bones[i].parentBoneIndex >= 0) {
                 boneObjects[i].parent = boneObjects[geo.bones[i].parentBoneIndex];
                 boneObjects[i].gameObject.AddComponent<BoneGizmo>();
             }
             boneObjects[i].localPosition = ren.sharedMesh.bindposes[i].GetColumn(3);
-            boneObjects[i].localRotation = ren.sharedMesh.bindposes[i].rotation;
-            ren.sharedMesh.bindposes[i] = Matrix4x4.identity;
+            boneObjects[i].localRotation = ren.sharedMesh.bindposes[i].rotation.normalized;
+        }
+
+        var prevPositions = boneObjects.Select(b => b.position).ToArray();
+        ren.sharedMesh.bindposes = boneObjects.Select((b,i) => Matrix4x4.Rotate(boneObjects[i].localToWorldMatrix.rotation)).ToArray();
+        for (int i = 0; i < geo.bones.Length; i++) {
+            boneObjects[i].localRotation = UnityEngine.Quaternion.identity;
+            boneObjects[i].position = prevPositions[i];
         }
 
         ren.bones = boneObjects;
         ren.rootBone = boneObjects.Single(b => b.parent == null);
         ren.rootBone.parent = ren.transform;
+        ren.rootBone.transform.Rotate(-90.0f, 0.0f, 0.0f, Space.World);
         return boneObjects;
     }
 
