@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +25,15 @@ namespace dere.io
         FormatMask = (1 << 5) - 1
     }
 
+    public interface IBitmapFactory
+    {
+        IBitmap CreateNew(int width, int height);
+    }
+    public interface IBitmap
+    {
+        void SetPixel(int x, int y, Color c);
+    }
+
     public static class GeBitmap
     {
         private static int shiftRRoundup(int val, int shift) =>
@@ -44,14 +52,14 @@ namespace dere.io
             return Enumerable.Repeat(0, count).Select(_ => info.ReadColor(reader)).ToArray();
         }
 
-        private static Bitmap readMipmap(BinaryReader reader, int level, int totalWidth, int totalHeight, GePixelFormat format, Color[] palette, Nullable<Color> colorKey)
+        private static IBitmap readMipmap(BinaryReader reader, IBitmapFactory bitmapFactory, int level, int totalWidth, int totalHeight, GePixelFormat format, Color[] palette, Nullable<Color> colorKey)
         {
             int curWidth = shiftRRoundup(totalWidth, level);
             int curHeight = shiftRRoundup(totalHeight, level);
             Nullable<PixelFormatInfo> info = format == GePixelFormat.Palette8
                 ? new Nullable<PixelFormatInfo>()
                 : new PixelFormatInfo(format);
-            Bitmap image = new Bitmap(curWidth, curHeight);
+            IBitmap image = bitmapFactory.CreateNew(curWidth, curHeight);
             for (int y = 0; y < curHeight; y++) {
                 for (int x = 0; x < curWidth; x++) {
                     Color color;
@@ -60,14 +68,14 @@ namespace dere.io
                     else
                         color = info.Value.ReadColor(reader);
                     if (colorKey.HasValue && colorKey.Value == color)
-                        color = Color.FromArgb(0);
+                        color = new Color(0, 0, 0, 0);
                     image.SetPixel(x, y, color);
                 }
             }
             return image;
         }
 
-        public static Bitmap[] LoadFromStream(Stream stream)
+        public static IBitmap[] LoadFromStream(Stream stream, IBitmapFactory bitmapFactory)
         {
             BinaryReader reader = new BinaryReader(stream);
             if (reader.ReadUInt32() != 0x6D426547)
@@ -101,24 +109,29 @@ namespace dere.io
             }
 
             Nullable<Color> colorKey = null;
+            Nullable<byte> colorKeyIndex = null;
             if (flags.HasFlag(GeBM_Flags.HasColorKey))
             {
                 if (format == GePixelFormat.Palette8)
-                    throw new InvalidDataException("Unsupported paletted color key");
-                colorKey = new PixelFormatInfo(format).ReadColor(reader);
+                    colorKeyIndex = reader.ReadByte();
+                else
+                    colorKey = new PixelFormatInfo(format).ReadColor(reader);
             }
 
             Color[] palette = flags.HasFlag(GeBM_Flags.HasPalette)
                 ? readPalette(reader)
                 : null;
 
-            var mipmaps = new List<Bitmap>();
+            if (colorKeyIndex != null)
+                colorKey = palette[colorKeyIndex.Value];
+
+            var mipmaps = new List<IBitmap>();
             while(true)
             {
                 int level = (int)reader.ReadByte();
                 if (level > maximumMip)
                     break;
-                mipmaps.Add(readMipmap(reader, level, width, height, format, palette, colorKey));
+                mipmaps.Add(readMipmap(reader, bitmapFactory, level, width, height, format, palette, colorKey));
             }
 
             if (flags.HasFlag(GeBM_Flags.HasAlpha))

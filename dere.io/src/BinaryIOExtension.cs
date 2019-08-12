@@ -36,6 +36,20 @@ namespace dere.io.prv
             return len == 0 ? "" : Encoding.UTF8.GetString(buf, 0, len);
         }
 
+        /// <summary>Reads a dynamically sized c string</summary>
+        public static string ReadCString(this BinaryReader reader)
+        {
+            StringBuilder builder = new StringBuilder();
+            while (true)
+            {
+                char c = reader.ReadChar();
+                if (c == 0)
+                    break;
+                builder.Append(c);
+            }
+            return builder.ToString();
+        }
+
         /// <summary>Writes a 32-bit prefixed, 0-terminated string</summary>
         public static void WriteZString(this BinaryWriter writer, string text)
         {

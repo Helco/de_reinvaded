@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 using System.Collections.Generic;
 using System.IO;
 
@@ -113,11 +112,11 @@ namespace dere.io.prv
             byte[] buffer = new byte[4] { 0, 0, 0, 0 };
             reader.BaseStream.Read(buffer, 0, bytesPerPixel);
             UInt32 value = BitConverter.ToUInt32(buffer, 0);
-            return Color.FromArgb(
-                aBits == 0 ? 255 : getExtendedValue(value, aShift, aBits),
+            return new Color(
                 getExtendedValue(value, rShift, rBits),
                 getExtendedValue(value, gShift, gBits),
-                getExtendedValue(value, bShift, bBits)
+                getExtendedValue(value, bShift, bBits),
+                aBits == 0 ? (byte)255 : getExtendedValue(value, aShift, aBits)
             );
         }
     }
