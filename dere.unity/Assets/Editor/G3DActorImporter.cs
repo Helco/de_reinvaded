@@ -46,22 +46,17 @@ public class G3DActorImporter : ScriptedImporter
 
     public override void OnImportAsset(AssetImportContext ctx)
     {
-        try
-        {
-             FileStream fileStream = new FileStream(ctx.assetPath, FileMode.Open, FileAccess.Read);
-            var rootVFile = dere.io.VFile.LoadFromStream(fileStream);
-            verifyHeader(ctx, rootVFile);
+        if (material == null)
+            material = new UnityEngine.Material(Shader.Find("Standard"));
 
-            var bodyVFile = dere.io.VFile.LoadFromStream(rootVFile.OpenFile("Body"));
-            GeGeometry geo = GeGeometry.LoadFromStream(bodyVFile.OpenFile("Geometry"));
-            Texture2D[] textures = loadTextures(ctx, bodyVFile);
-            createMainPrefab(ctx, geo, textures);
-        }
-        catch (Exception e)
-        {
-            ctx.LogImportError(e.Message);
-            return;
-        }
+        FileStream fileStream = new FileStream(ctx.assetPath, FileMode.Open, FileAccess.Read);
+        var rootVFile = dere.io.VFile.LoadFromStream(fileStream);
+        verifyHeader(ctx, rootVFile);
+
+        var bodyVFile = dere.io.VFile.LoadFromStream(rootVFile.OpenFile("Body"));
+        GeGeometry geo = GeGeometry.LoadFromStream(bodyVFile.OpenFile("Geometry"));
+        Texture2D[] textures = loadTextures(ctx, bodyVFile);
+        createMainPrefab(ctx, geo, textures);
     }
 
     private void createMainPrefab(AssetImportContext ctx, GeGeometry geo, Texture2D[] textures)
@@ -165,25 +160,27 @@ public class G3DActorImporter : ScriptedImporter
 
     private Texture2D[] loadTextures(AssetImportContext ctx, VFile bodyVFile)
     {
-        var textures = Enumerable.Empty<Texture2D>();
+        var textures = new List<Texture2D>();
         var bitmapFactory = new G3DActor_BitmapFactory();
         var textureNames = bodyVFile.FileNames
             .Where(f => f.StartsWith("Bitmaps/"))
-            .OrderBy(s => s);
+            .OrderBy(s => Int32.Parse(s.Substring("Bitmaps/".Length)));
         foreach (var filename in textureNames) {
             var texture = (GeBitmap.LoadFromStream(bodyVFile.OpenFile(filename), bitmapFactory)[0] as G3DActor_Bitmap).Texture;
             ctx.AddObjectToAsset(filename.Replace("/", ""), texture);
-            textures = textures.Append(texture);
+            textures.Add(texture);
         }
         return textures.ToArray();
     }
 
     private UnityEngine.Material[] convertMaterials(AssetImportContext ctx, GeGeometry geo, Texture2D[] textures)
     {
+        int textureI = 0;
         return geo.materials.Select((dereMat, i) => {
             var unityMat = new UnityEngine.Material(material);
             unityMat.name = dereMat.name;
-            unityMat.mainTexture = textures[i];
+            if (dereMat.hasBitmap)
+                unityMat.mainTexture = textures[textureI++];
             ctx.AddObjectToAsset(dereMat.name, unityMat);
             return unityMat;
         }).ToArray();
