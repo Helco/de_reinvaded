@@ -130,10 +130,12 @@ public class G3DActorImporter : ScriptedImporter
         return mesh;
     }
 
-    private Transform[] createSkeleton(AssetImportContext ctx, GeGeometry geo, SkinnedMeshRenderer ren)
+    private void createSkeleton(AssetImportContext ctx, GeGeometry geo, SkinnedMeshRenderer ren)
     {
-        Transform[] boneObjects = Enumerable.Repeat(0, geo.bones.Length)
-            .Select((_) => new GameObject().transform).ToArray();
+        Transform[] boneObjects = Enumerable
+            .Repeat(0, geo.bones.Length + 1) // we need to add a custom root bone
+            .Select((_) => new GameObject().transform)
+            .ToArray();
         for (int i = 0; i < geo.bones.Length; i++) {
             boneObjects[i].name = i + ": " + geo.bones[i].name;
             if (geo.bones[i].parentBoneIndex >= 0) {
@@ -145,17 +147,23 @@ public class G3DActorImporter : ScriptedImporter
         }
 
         var prevPositions = boneObjects.Select(b => b.position).ToArray();
-        ren.sharedMesh.bindposes = boneObjects.Select((b,i) => Matrix4x4.Rotate(boneObjects[i].localToWorldMatrix.rotation)).ToArray();
+        ren.sharedMesh.bindposes = geo.bones
+            .Select((b,i) => Matrix4x4.Rotate(boneObjects[i].localToWorldMatrix.rotation))
+            .Append(Matrix4x4.identity) // no transform on the rot bone
+            .ToArray();
         for (int i = 0; i < geo.bones.Length; i++) {
             boneObjects[i].localRotation = UnityEngine.Quaternion.identity;
             boneObjects[i].position = prevPositions[i];
         }
-
         ren.bones = boneObjects;
-        ren.rootBone = boneObjects.Single(b => b.parent == null);
+
+        // add the (perhabs multiple) root bones to our real one
+        ren.rootBone = boneObjects.Last();
+        ren.rootBone.name = "RootBone";
         ren.rootBone.parent = ren.transform;
+        foreach(var subRootBone in boneObjects.Where(t => t.parent == null && t != ren.rootBone))
+            subRootBone.parent = ren.rootBone;
         ren.rootBone.transform.Rotate(-90.0f, 0.0f, 0.0f, Space.World);
-        return boneObjects;
     }
 
     private Texture2D[] loadTextures(AssetImportContext ctx, VFile bodyVFile)
