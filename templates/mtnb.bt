@@ -48,6 +48,8 @@ struct TKEvents {
 
 struct VKFrameList {
   uint32 blockSize;
+  local int64 blockStart = FTell();
+
   byte isLooping;
   byte compression;
   VKInterpolation interpolationType;
@@ -61,6 +63,10 @@ struct VKFrameList {
   else
     float times[count];
   Vec3f keys[count];
+
+  local int64 remainingBlockSize =
+    blockSize - (FTell() - blockStart);
+  Assert(remainingBlockSize == 0, "BlockSize is not equal to ContentSize");
 };
 
 struct QKFrameList {
@@ -87,10 +93,10 @@ struct QKFrameList {
 };
 
 struct Path {
-  uint32 hasTranslationKeys: 1;
   uint32 hasRotationKeys: 1;
-  PathInterpolation translationInterpolation: 7;
+  uint32 hasTranslationKeys: 1;
   PathInterpolation rotationInterpolation: 7;
+  PathInterpolation translationInterpolation: 7;
   uint32 version: 16;
 
   if (hasTranslationKeys)

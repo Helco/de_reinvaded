@@ -9,6 +9,10 @@ namespace dere.io
     public struct Vector3
     {
         public float x, y, z;
+        public float LengthSqr => x*x + y*y + z*z;
+        public float Length => (float)Math.Sqrt(LengthSqr);
+        public Vector3 Normalized => new Vector3(x / Length, y / Length, z / Length);
+
         public Vector3(float _x, float _y, float _z)
         {
             x = _x;
@@ -49,6 +53,19 @@ namespace dere.io
                 x = reader.ReadSingle(),
                 y = reader.ReadSingle(),
                 z = reader.ReadSingle(),
+            };
+        }
+
+        public static Quaternion FromAxisAngle(Vector3 axis, float angle)
+        {
+            axis = axis.Normalized;
+            float s = (float)Math.Sin(angle / 2.0);
+            return new Quaternion
+            {
+                x = axis.x * s,
+                y = axis.y * s,
+                z = axis.z * s,
+                w = (float)Math.Cos(angle / 2.0)
             };
         }
     }
