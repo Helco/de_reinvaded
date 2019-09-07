@@ -56,10 +56,13 @@ public class G3DActorImporter : ScriptedImporter
         var bodyVFile = dere.io.VFile.LoadFromStream(rootVFile.OpenFile("Body"));
         GeGeometry geo = GeGeometry.LoadFromStream(bodyVFile.OpenFile("Geometry"));
         Texture2D[] textures = loadTextures(ctx, bodyVFile);
-        createMainPrefab(ctx, geo, textures);
+        GeMotion[] motions = loadMotions(ctx, rootVFile);
+        var rootObject = createMainPrefab(ctx, geo, textures);
+        var clips = createAnimations(ctx, geo, motions);
+        createAnimator(ctx, rootObject, clips);
     }
 
-    private void createMainPrefab(AssetImportContext ctx, GeGeometry geo, Texture2D[] textures)
+    private GameObject createMainPrefab(AssetImportContext ctx, GeGeometry geo, Texture2D[] textures)
     {
         GameObject root = new GameObject("");
 
@@ -70,6 +73,7 @@ public class G3DActorImporter : ScriptedImporter
 
         ctx.AddObjectToAsset("Main", root);
         ctx.SetMainObject(root);
+        return root;
     }
 
     private void verifyHeader(AssetImportContext ctx, VFile rootVFile)
@@ -137,7 +141,7 @@ public class G3DActorImporter : ScriptedImporter
             .Select((_) => new GameObject().transform)
             .ToArray();
         for (int i = 0; i < geo.bones.Length; i++) {
-            boneObjects[i].name = i + ": " + geo.bones[i].name;
+            boneObjects[i].name = geo.bones[i].name;
             if (geo.bones[i].parentBoneIndex >= 0) {
                 boneObjects[i].parent = boneObjects[geo.bones[i].parentBoneIndex];
                 boneObjects[i].gameObject.AddComponent<BoneGizmo>();
@@ -192,5 +196,82 @@ public class G3DActorImporter : ScriptedImporter
             ctx.AddObjectToAsset(dereMat.name, unityMat);
             return unityMat;
         }).ToArray();
+    }
+
+    private GeMotion[] loadMotions(AssetImportContext ctx, VFile rootVFile)
+    {
+        return rootVFile.FileNames
+            .Where(f => f.StartsWith("Motions/"))
+            .OrderBy(s => Int32.Parse(s.Substring("Motions/".Length)))
+            .Select(rootVFile.OpenFile)
+            .Select(GeMotion.LoadFromStream)
+            .ToArray();
+    }
+
+    private AnimationClip[] createAnimations(AssetImportContext ctx, GeGeometry geo, GeMotion[] motions)
+    {
+        return motions.Select(m => convertAnimation(ctx, geo, m)).ToArray();
+    }
+
+    private AnimationClip convertAnimation(AssetImportContext ctx, GeGeometry geo, GeMotion motion)
+    {
+        AnimationClip clip = new AnimationClip();
+        clip.name = motion.name;
+        foreach (GeMotionPath path in motion.paths)
+            convertAnimationPathTo(ctx, geo, path, clip);
+        ctx.AddObjectToAsset(clip.name, clip);
+        return clip;
+    }
+
+    private void convertAnimationPathTo(AssetImportContext ctx, GeGeometry geo, GeMotionPath motionPath, AnimationClip clip)
+    {
+        // Find full transform path from root bone
+        var boneChain = new List<string>() { motionPath.name };
+        Bone curBone = geo.bones.Single(b => b.name == motionPath.name);
+        while (curBone.parentBoneIndex >= 0)
+        {
+            curBone = geo.bones[curBone.parentBoneIndex];
+            boneChain.Add(curBone.name);
+        }
+        boneChain.Add("RootBone");
+        var transformPath = String.Join("/", (boneChain as IEnumerable<string>).Reverse());
+
+        if (motionPath.vkFrames != null)
+        {
+            //TODO: Add Interpolation type
+            var vectorFrames = motionPath.vkFrames.frameTimes.Zip(motionPath.vkFrames.frames, (time, value) => (time, value));
+            var xKeyFrames = vectorFrames.Select(t => new Keyframe(t.time, t.value.x)).ToArray();
+            var yKeyFrames = vectorFrames.Select(t => new Keyframe(t.time, t.value.y)).ToArray();
+            var zKeyFrames = vectorFrames.Select(t => new Keyframe(t.time, t.value.z)).ToArray();
+            clip.SetCurve(transformPath, typeof(Transform), "localPosition.x", new AnimationCurve(xKeyFrames));
+            clip.SetCurve(transformPath, typeof(Transform), "localPosition.y", new AnimationCurve(yKeyFrames));
+            clip.SetCurve(transformPath, typeof(Transform), "localPosition.z", new AnimationCurve(zKeyFrames));
+        }
+
+        if (motionPath.qkFrames != null)
+        {
+            //TODO Add Interpolation type
+            var quatFrames = motionPath.qkFrames.frameTimes.Zip(motionPath.qkFrames.frames, (time, value) => (time, value));
+            var xKeyFrames = quatFrames.Select(t => new Keyframe(t.time, t.value.x)).ToArray();
+            var yKeyFrames = quatFrames.Select(t => new Keyframe(t.time, t.value.y)).ToArray();
+            var zKeyFrames = quatFrames.Select(t => new Keyframe(t.time, t.value.z)).ToArray();
+            var wKeyFrames = quatFrames.Select(t => new Keyframe(t.time, t.value.w)).ToArray();
+            clip.SetCurve(transformPath, typeof(Transform), "localRotation.x", new AnimationCurve(xKeyFrames));
+            clip.SetCurve(transformPath, typeof(Transform), "localRotation.y", new AnimationCurve(yKeyFrames));
+            clip.SetCurve(transformPath, typeof(Transform), "localRotation.z", new AnimationCurve(zKeyFrames));
+            clip.SetCurve(transformPath, typeof(Transform), "localRotation.w", new AnimationCurve(wKeyFrames));
+        }
+    }
+
+    private void createAnimator(AssetImportContext ctx, GameObject rootObject, AnimationClip[] clips)
+    {
+        var avatar = AvatarBuilder.BuildGenericAvatar(rootObject, "RootBone");
+        ctx.AddObjectToAsset("Avatar_" + rootObject.name, avatar);
+
+        var controller = new UnityEditor.Animations.AnimatorController();
+        ctx.AddObjectToAsset("AniController_" + rootObject.name, controller);
+
+        var animator = rootObject.AddComponent<Animator>();
+        animator.avatar = avatar;
     }
 }
